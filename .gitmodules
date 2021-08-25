@@ -1,0 +1,3 @@
+[submodule "matplotlib-curly-brace"]
+	path = matplotlib-curly-brace
+	url = https://github.com/iruletheworld/matplotlib-curly-brace.git
