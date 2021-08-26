@@ -426,13 +426,20 @@ class ModelCollection:
     
     def _compute_scross_validation_for_model(self, model_name):
         model = self.models[model_name]
+        # for models that can be computed in parallel, let them be
+        # if the models are being computed in parallel, don't cross validate in parallel. That would request too many cores
+        # if the models are not computed in parallel, run cross validation in parallel
+        cross_val_parallel = -1
         if getattr(model, 'n_jobs', None) is not None:
             model.n_jobs = -1
+            cross_val_parallel = None
+
         _x, _y = self._get_xy(model_name)
         self.cross_val_scores_[model_name] = cross_validate(model, 
                                   _x, _y, 
                                   cv = self._get_cross_validation(), 
-                                  scoring = self.scoring)
+                                  scoring = self.scoring,
+                                  n_jobs=cross_val_parallel)
           
     def compute_scores(self, x, y):
         """
