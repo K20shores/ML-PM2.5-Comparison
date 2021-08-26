@@ -40,6 +40,9 @@ import glob
 from sklearn.ensemble import VotingRegressor
 from sklearn.metrics import mean_absolute_error, r2_score, mean_squared_error
 
+import numpy as np
+import pandas as pd
+
 class MixedLMWrapper(BaseEstimator, RegressorMixin):
     """ 
     An sklearn-style wrapper for the statsmodels MixedLM regressor
@@ -304,17 +307,18 @@ class ModelCollection:
         lme_locations: pd.Series default None
             A pandas Series with the same index as x whose column values should indicate a locaitonal grouping of each row in x
         """
+        
         self.x = x.copy()
         self.y = y
+        
+        self.scaler = None
+        self.scaled_x = None
         
         self.lme_dependent = lme_dependent
         self.lme_independents = lme_independents
         self.lme_group = lme_group
         self.lme_formula = lme_formula
         self.lme_locations = lme_locations
-        
-        self.lme_x = self._transform_x_for_lme(self.x)
-        self.lme_y = self.y.copy().rename(self.lme_dependent)
         
         self.scores_ = {}
         self.cross_val_scores_ = {}
@@ -410,7 +414,7 @@ class ModelCollection:
             keys are strings of the model names with values being the output 
             of sklearn.model_selection.cross_validate
         """
-        if not 'cross_val_scores_' in mc.__dict__:
+        if not 'cross_val_scores_' in self.__dict__:
             self.cross_val_scores_ = {}
         else:
             if model_name in self.cross_val_scores_:
@@ -422,16 +426,13 @@ class ModelCollection:
     
     def _compute_scross_validation_for_model(self, model_name):
         model = self.models[model_name]
-        # parallel cross validation already requires all of the resources, having a model
-        # try to also use all the recources is too much
         if getattr(model, 'n_jobs', None) is not None:
-            model.n_jobs = 1
+            model.n_jobs = -1
         _x, _y = self._get_xy(model_name)
         self.cross_val_scores_[model_name] = cross_validate(model, 
                                   _x, _y, 
                                   cv = self._get_cross_validation(), 
-                                  scoring = self.scoring,
-                                  n_jobs=-1)
+                                  scoring = self.scoring)
           
     def compute_scores(self, x, y):
         """
@@ -455,7 +456,7 @@ class ModelCollection:
         """
         self.scores_ = {}
         for name in self.models.keys():
-            r2, rmse, mae = self.compute_cross_validation_scores_for_model(name)
+            r2, rmse, mae = self.compute_scores_for_model(name, x, y)
 
             self.scores_[name] = {
                 'r2' : r2,
@@ -487,10 +488,7 @@ class ModelCollection:
         """
         model = self.models[model_name]
         
-        if model_name == 'Linear Mixed Effect':
-            _x = self._transform_x_for_lme(x.copy())
-        else:
-            _x = x.copy()
+        _x = self._transform_x_for_prediction(model_name, x)
 
         y_pred = model.predict(_x)
         scores = (
@@ -510,8 +508,7 @@ class ModelCollection:
     def predict_model(self, model_name, x):
         
         model = self.models[model_name]
-        if model_name == 'Linear Mixed Effect':
-            x = self._transform_x_for_lme(x)
+        x = self._transform_x_for_prediction(model_name, x)
         return model.predict(x)
         
     def save(self, filepath):
@@ -529,6 +526,7 @@ class ModelCollection:
         """
         
         ar = [(name, model) for name, model in self.models.items()]
+        ar.append(('scaler', self.scaler))
         dump(ar, filepath)
         
     def load(self, filename):
@@ -543,7 +541,8 @@ class ModelCollection:
         filename : string, optional default ''
             The full path and filename to load the model from.
         """
-        names_models = load(filename)
+        ar = load(filename)
+        names_models, self.scaler = ar[:-1], ar[-1][0]
         self.models = {name: model for name, model in names_models}
             
     def save_model_cross_val_scores(self, filename=''):
@@ -602,19 +601,17 @@ class ModelCollection:
         mlp2 = MLPRegressor(hidden_layer_sizes=(100, 50, 50, 50, 50), max_iter=100000, early_stopping=True)
         mlp3 = MLPRegressor(hidden_layer_sizes=(100, 50, 50, 50, 50, 100), max_iter=100000, early_stopping=True)
 
-        formula = f'{self.lme_dependent} ~ {self.lme_independents}'
-        
         self.models = {
             'Linear Regression': LinearRegression(),
-            'Elastic Net' : Pipeline([('scaler', StandardScaler()), ('elastic', elastic)]),
+            'Elastic Net' : elastic,
             'Polynomial' : Pipeline([('poly', PolynomialFeatures()), ('linear', linear_model.LinearRegression())]),
             'Bayesian Ridge' : BayesianRidge(),
-            'SVR' : Pipeline([('scaler', StandardScaler()), ('svr', LinearSVR())]),
+            'SVR' :  LinearSVR(max_iter=20000),
             'Linear Mixed Effect': Pymer4Wrapper(formula=self.lme_formula),
-            'MLP' : Pipeline([('scaler', StandardScaler()), ('mlp', mlp)]),
-            'MLP1' : Pipeline([('scaler', StandardScaler()), ('mlp', mlp1)]),
-            'MLP2' : Pipeline([('scaler', StandardScaler()), ('mlp', mlp2)]),
-            'MLP3' : Pipeline([('scaler', StandardScaler()), ('mlp', mlp3)]),
+            'MLP' :  mlp,
+            'MLP1' : mlp1,
+            'MLP2' : mlp2,
+            'MLP3' : mlp3,
             'Ada Boost' : AdaBoostRegressor(),
             'Random Forest' : RandomForestRegressor(n_jobs=-1),
             'Extra Trees' : ExtraTreesRegressor(n_jobs=-1),
@@ -628,19 +625,36 @@ class ModelCollection:
         return StratifiedKFold(self.cv).split(self.x, y_cat)
     
     def _get_xy(self, model_name):
+        if self.scaler is None:
+            self.scaler = StandardScaler().fit(self.x)
+            
+        if self.scaled_x is None:
+            scaled_values = self.scaler.transform(self.x)
+            self.scaled_x = pd.DataFrame(scaled_values, index=self.x.index, columns=self.x.columns)
+        
         if model_name == 'Linear Mixed Effect':
-            _x = self.lme_x
-            _y = self.lme_y
+            _x = self._transform_x_for_lme(self.scaled_x)
+            _y = self.y.copy().rename(self.lme_dependent)
         else:
-            _x = self.x.copy()
+            _x = self.scaled_x
             _y = self.y
         
         return _x, _y
     
+    def _transform_x_for_prediction(self, model_name, x):
+        scaled_values = self.scaler.transform(x)
+        scaled_x = pd.DataFrame(scaled_values, index=x.index, columns=x.columns)
+        
+        if model_name == 'Linear Mixed Effect':
+            _x = self._transform_x_for_lme(scaled_x)
+        else:
+            _x = scaled_x
+        
+        return _x
+    
     def _transform_x_for_lme(self, x):
         if not x.empty:
             x_lme = x.copy()
-            x_lme = pd.concat([x_lme, self.lme_locations], axis=1)
             if self.lme_group == 'DoY':
                 x_lme['DoY'] = x_lme.index.dayofyear
             elif self.lme_group == 'Month':
@@ -648,7 +662,7 @@ class ModelCollection:
             elif self.lme_group == 'Season':
                 x_lme['Season'] = (x_lme.index.month%12 // 3 + 1)
             elif self.lme_group == 'Location':
-                pass
+                x_lme = pd.concat([x_lme, self.lme_locations], axis=1)
         else:
             x_lme = []
         
@@ -713,7 +727,7 @@ class ModelStack():
             regressor with them.
         """
         
-        if mc.scores_:
+        if self.mc.scores_:
             scores = self.mc.scores_
         else:
             _x = self.x.copy()
