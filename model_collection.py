@@ -662,6 +662,7 @@ class ModelCollection:
     def _transform_x_for_lme(self, x):
         if not x.empty:
             x_lme = x.copy()
+            x_lme = pd.concat([x_lme, self.lme_locations], axis=1)
             if self.lme_group == 'DoY':
                 x_lme['DoY'] = x_lme.index.dayofyear
             elif self.lme_group == 'Month':
@@ -669,7 +670,7 @@ class ModelCollection:
             elif self.lme_group == 'Season':
                 x_lme['Season'] = (x_lme.index.month%12 // 3 + 1)
             elif self.lme_group == 'Location':
-                x_lme = pd.concat([x_lme, self.lme_locations], axis=1)
+                pass
         else:
             x_lme = []
         
