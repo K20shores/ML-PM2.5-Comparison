@@ -1,4 +1,3 @@
-# from dask_ml.linear_model import LinearRegression
 from sklearn.linear_model import ElasticNetCV, BayesianRidge, LinearRegression
 from sklearn.svm import LinearSVR
 from sklearn import linear_model
@@ -6,7 +5,6 @@ from sklearn import linear_model
 from sklearn.neural_network import MLPRegressor
 
 from sklearn.ensemble import AdaBoostRegressor, RandomForestRegressor, ExtraTreesRegressor, GradientBoostingRegressor
-from sklearn.tree import DecisionTreeRegressor
 
 # on mac, dask xgboost relies on your hostname resolving to an address
 # you may have to edit your /etc/hosts file: https://apple.stackexchange.com/questions/253817/cannot-ping-my-local-machine
@@ -19,15 +17,12 @@ from sklearn.model_selection import StratifiedKFold
 
 from sklearn.pipeline import Pipeline
 
-from dask_ml.preprocessing import StandardScaler
-from dask_ml.preprocessing import PolynomialFeatures
-import dask.array as da
+from sklearn.preprocessing import StandardScaler, PolynomialFeatures
 
 import time
 
 import pickle
 from joblib import dump, load
-import joblib
 
 from statsmodels.api import MixedLM
 from sklearn.base import BaseEstimator, RegressorMixin
@@ -35,7 +30,6 @@ from sklearn.base import BaseEstimator, RegressorMixin
 from pymer4 import Lmer
 
 from tqdm.notebook import tqdm
-import glob
 
 from sklearn.ensemble import VotingRegressor
 from sklearn.metrics import mean_absolute_error, r2_score, mean_squared_error
@@ -43,124 +37,7 @@ from sklearn.metrics import mean_absolute_error, r2_score, mean_squared_error
 import numpy as np
 import pandas as pd
 
-class MixedLMWrapper(BaseEstimator, RegressorMixin):
-    """ 
-    An sklearn-style wrapper for the statsmodels MixedLM regressor
-
-    MixedLM documentation: https://www.statsmodels.org/stable/generated/statsmodels.regression.mixed_linear_model.MixedLM.html?highlight=mixedlm#statsmodels.regression.mixed_linear_model.MixedLM
-    Code taken and modified from here: https://stackoverflow.com/a/48949667/5217293
-    
-    Other useful resources:
-      - https://www.statsmodels.org/stable/examples/notebooks/generated/mixed_lm_example.html
-      - https://www.statsmodels.org/stable/mixed_linear.html
-      - https://www.statsmodels.org/stable/generated/statsmodels.regression.mixed_linear_model.MixedLM.fit_regularized.html#statsmodels.regression.mixed_linear_model.MixedLM.fit_regularized
-      - https://nbviewer.jupyter.org/urls/umich.box.com/shared/static/lc6uf6dmabmitjbup3yt.ipynb
-      - https://nbviewer.jupyter.org/urls/umich.box.com/shared/static/6tfc1e0q6jincsv5pgfa.ipynb
-    
-    Attributes
-    ----------
-    formula : string
-        The formula used by the MixedLM model. See the constructor for more details on this
-    dependent_label : string
-        The label of the dependent variable
-    random_effect_variable : string
-        The variable that will group the data to control for its random effect
-    model_ : statsmodels.regression.mixed_linear_model.MixedLM
-        The mixed effect model
-        Set after calling fit()
-    results_ : statsmodels.regression.mixed_linear_model.MixedLMResults
-        The results of the mixed effect model fit.
-        Set after calling fit()
-    """
-    def __init__(self, formula, dependent_label, groups, vc_formula = None, re_formula = None):
-        """
-        Initialize the MixedLM model
-
-        Parameters
-        ----------
-        formula : pandas DataFrame
-            A formula used to initialize the MixedLM using MixedLM.from_formula(): https://www.statsmodels.org/stable/generated/statsmodels.regression.mixed_linear_model.MixedLM.from_formula.html#statsmodels.regression.mixed_linear_model.MixedLM.from_formula
-            The formula is an R-style formula. Read more here: https://www.statsmodels.org/stable/examples/notebooks/generated/formulas.html
-        dependent_label : string
-            The label of the dependent variable
-        groups : string
-            The variable that will group the data to control for its random effect
-        vc_formula : dictionary, default None
-            The variance component (vc) formula that indicates what subgroups within the group should be fit
-        re_formula : string
-            One-sided random effect formula
-        """
-        self.formula = formula
-        self.dependent_label = dependent_label
-        self.groups = groups
-        self.vc_formula = vc_formula
-        self.re_formula = re_formula
-
-    def fit(self, X, y):
-        """
-        Fit the MixedLM model
-
-        Parameters
-        ----------
-        X : array_like
-            The covariates used to predict `y`
-        y : array_like
-            The values that should be predicted
-        """
-        data = pd.concat([pd.DataFrame(X), pd.Series(y)], axis=1)
-        data.columns = X.columns.tolist() + [self.dependent_label]
-
-        self.model_ = MixedLM.from_formula(self.formula, 
-                                           data=data, 
-                                           groups=self.groups,
-                                           vc_formula=self.vc_formula, 
-                                           re_formula=self.re_formula)
-        self.results_ = self.model_.fit(method="lbfgs")
-        
-        return self
-        
-    def predict(self, X):
-        """
-        Make a prediction with the fitted model
-
-        Parameters
-        ----------
-        X : array_like
-            The covariates used to make a prediction
-        """
-        return self.results_.predict(X)
-    
-    def summary(self):
-        """
-        Print a summary of the fitted results 
-        
-        See the MixedLMResults.summary documentation for more information: https://www.statsmodels.org/stable/generated/statsmodels.regression.mixed_linear_model.MixedLMResults.summary.html#statsmodels.regression.mixed_linear_model.MixedLMResults.summary
-        """
-        return self.results_.summary()
-    
-    def compute_scores(self, X, y):
-        """
-        Predict the values and return three scores
-        
-        Parameters
-        ----------
-        X : array_like
-            The covariates used to predict `y`
-        y : array_like
-            The values that should be predicted
-            
-        Returns
-        ----------
-            scores: tuple
-                r2_score, root mean squared error, mean absolute error
-        """
-        y_pred = self.results_.predict(X)
-        
-        r2 = r2_score(y, y_pred)
-        rmse = mean_squared_error(y, y_pred, squared=False)
-        mae = mean_absolute_error(y, y_pred)
-        scores = r2, rmse, mae
-        return scores
+import warnings
 
 class Pymer4Wrapper(BaseEstimator, RegressorMixin):
     """ 
@@ -364,7 +241,7 @@ class ModelCollection:
             to fit the model in seconds
         """
         
-        _x, _y = self._get_xy(model_name)
+        _x, _y = self._get_xy_for_training(model_name)
         
         start = time.time()
             
@@ -434,7 +311,7 @@ class ModelCollection:
             model.n_jobs = -1
             cross_val_parallel = None
 
-        _x, _y = self._get_xy(model_name)
+        _x, _y = self._get_xy_for_training(model_name)
         self.cross_val_scores_[model_name] = cross_validate(model, 
                                   _x, _y, 
                                   cv = self._get_cross_validation(), 
@@ -495,7 +372,7 @@ class ModelCollection:
         """
         model = self.models[model_name]
         
-        _x = self._transform_x_for_prediction(model_name, x)
+        _x = self._get_scaled_x(model_name, x)
 
         y_pred = model.predict(_x)
         scores = (
@@ -509,13 +386,21 @@ class ModelCollection:
     def predict(self, x):
         predicitons = {}
         
+        x = None 
         for model_name in self.models.keys():
-            predicitons[model_name] = self.predict_model(model_name, x)
+            if model_name == 'Linear Mixed Effect':
+                x_lme = self._get_scaled_x(model_name, x)
+                predicitons[model_name] = self.predict_model(model_name, x_lme, is_scaled=True)
+            else:
+                if x is None:
+                    x = self._get_scaled_x(model_name, x)
+                predicitons[model_name] = self.predict_model(model_name, x, is_scaled=True)
     
-    def predict_model(self, model_name, x):
+    def predict_model(self, model_name, x, is_scaled=False):
         
         model = self.models[model_name]
-        x = self._transform_x_for_prediction(model_name, x)
+        if not is_scaled:
+            x = self._get_scaled_x(model_name, x)
         return model.predict(x)
         
     def save(self, filepath):
@@ -549,7 +434,7 @@ class ModelCollection:
             The full path and filename to load the model from.
         """
         ar = load(filename)
-        names_models, self.scaler = ar[:-1], ar[-1][0]
+        names_models, self.scaler = ar[:-1], ar[-1][1]
         self.models = {name: model for name, model in names_models}
             
     def save_model_cross_val_scores(self, filename=''):
@@ -565,7 +450,7 @@ class ModelCollection:
         with open(filename, 'wb') as f: 
             pickle.dump(self.cross_val_scores_, f)
 
-    def load_model_cross_val_scores(self, directory='', prefix=''):
+    def load_model_cross_val_scores(self, filename=''):
         """
         Load all of the model scores from the disk.
         
@@ -631,7 +516,7 @@ class ModelCollection:
         y_cat = pd.cut(self.y, self.cv, labels=range(self.cv))
         return StratifiedKFold(self.cv).split(self.x, y_cat)
     
-    def _get_xy(self, model_name):
+    def _get_xy_for_training(self, model_name):
         if self.scaler is None:
             self.scaler = StandardScaler().fit(self.x)
             
@@ -648,7 +533,7 @@ class ModelCollection:
         
         return _x, _y
     
-    def _transform_x_for_prediction(self, model_name, x):
+    def _get_scaled_x(self, model_name, x):
         scaled_values = self.scaler.transform(x)
         scaled_x = pd.DataFrame(scaled_values, index=x.index, columns=x.columns)
         
@@ -689,6 +574,8 @@ class ModelStack():
             and regressed against the predicted values.
         2. The residuals of the best models will be fitted to the stacking model.
     
+    The linear mixed effect models are not considered as part of the ModelStack. This is because the data needd for a linear mixed effect
+    is different than data for other models. The VotingRegressor cannot handle that situation.
     
     Attributes
     ----------
@@ -724,12 +611,17 @@ class ModelStack():
         self.mc = mc
         self.x = x.copy()
         self.y = y
+
+        self.scaler = self.mc.scaler
         
         self.n = n
         self.criterion = criterion
         
         self.voting_regressor_ = None
-        
+
+        if 'Linear Mixed Effect' in self.mc.models:
+            warnings.warn('The linear mixed effect model will not be considered for model stacking. See the documentation for this class for more information')
+
     def fit(self):
         """ Choose the model with the top self.n scores according to self.how and fit a voting
             regressor with them.
@@ -740,6 +632,10 @@ class ModelStack():
         else:
             _x = self.x.copy()
             scores = self.mc.compute_scores(_x, self.y)
+            self.scaler = self.mc.scaler
+        
+        if 'Linear Mixed Effect' in scores:
+            del scores['Linear Mixed Effect']
         
         # split the model names and scores into two lists
         names, scores = map(np.array, zip(*[(name, vals[self.criterion]) for name, vals in scores.items()]))
@@ -760,7 +656,7 @@ class ModelStack():
         
         self.voting_regressor_ = VotingRegressor(models, n_jobs=-1)
         
-        _x = self.x.copy()
+        _x = self.scaler.transform(self.x.copy())
         self.voting_regressor_.fit(_x, self.y)
         
     def compute_scores(self, x, y):
@@ -784,7 +680,7 @@ class ModelStack():
             this attribute is set after calling compute_scores()
         """
         
-        _x = x.copy()
+        _x = self.scaler.transform(x)
         
         y_pred = self.voting_regressor_.predict(_x)
         
@@ -808,42 +704,40 @@ class ModelStack():
             The results of the prediction made by the voting regressor
         """
         
-        _x = x.copy()
+        _x = self.scaler.transform(x)
         prediction = self.voting_regressor_.predict(_x)
         return prediction
-    
-    def save(self, directory='', prefix=''):
+
+    def save(self, filepath):
         """
-        Save this model to the disk using joblib as recommended 
+        Save the vorint regressor to the disk using joblib as recommended 
         by sklearn.
         
         Read more here: https://sklearn.org/modules/model_persistence.html
         
         Parameters
         ----------
-        directory : string, optional default ''
-            The directory that all of the models will be saved to.
-            This can be a file system path
-        prefix : string, optional default ''
-            The prefix to prepend to each model name
+        filename : string, optional default ''
+            The full path and filename to save the model to. This savs with joblib,
+            so it would be smart to include the extension of .joblib.
         """
         
-        dump(self.voting_regressor_, f'{directory}/{prefix}stacked.joblib')
+        ar = [self.voting_regressor_, self.scaler]
+        dump(ar, filepath)
         
-    def load(self, directory='', prefix=''):
+    def load(self, filename):
         """
-        Load a stacking model from the disk using joblib as recommended 
+        Load the voting regressor from the disk using joblib as recommended 
         by sklearn.
         
         Read more here: https://sklearn.org/modules/model_persistence.html
         
         Parameters
         ----------
-        directory : string, optional default ''
-            The directory that all of the models were saved to.
-            This can be a file system path
-        prefix : string, optional default ''
-            The prefix to prepended to each model name
+        filename : string, optional default ''
+            The full path and filename to load the model from.
+
         """
-        
-        self.voting_regressor_ = load(f'{directory}/{prefix}stacked.joblib')
+
+        ar = load(filename)
+        self.voting_regressor_, self.scaler = ar[:-1], ar[-1]
