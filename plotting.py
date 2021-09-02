@@ -2,6 +2,7 @@ from matplotlib.gridspec import GridSpec
 from matplotlib.cm import ScalarMappable
 from matplotlib.colors import Normalize
 import matplotlib.pyplot as plt
+from matplotlib import cm
 
 from utils import summarize_scores
 
@@ -123,7 +124,7 @@ def plot_prediction_error(model, x, y,
                           r2_ax_locx = .1, 
                           r2_ax_locy = .8, 
                           dropped_spines = False, 
-                          name = ''):
+                          name = '', cmap=cm.viridis):
     """
     Plot true values of y against the predicted values, y_hat, made by the model
     
@@ -159,7 +160,7 @@ def plot_prediction_error(model, x, y,
     fit_r2 = fit.score(y.values.reshape(-1, 1), y_hat)
     equation = f'y = {fit.coef_[0]:.2f} x + {fit.intercept_:.2f}'
 
-    line = np.arange(0, y_val.max(), 1)
+    line = np.arange(0, y.max(), 1)
 
     # historgrams on the side: https://matplotlib.org/stable/gallery/lines_bars_and_markers/scatter_hist.html#sphx-glr-gallery-lines-bars-and-markers-scatter-hist-py
     fig = plt.figure(dpi=300)
@@ -191,7 +192,8 @@ def plot_prediction_error(model, x, y,
     ax.plot(line, line, '--', color=unity_color, lw=1, label='unity')
     ax.plot(line, fit.predict(line.reshape(-1, 1)), color=fit_color, lw=1, label=equation)
 
-    ax.scatter(y, y_hat, alpha=0.5, color='#9CDEF6', edgecolors='#6549DA')
+    hb = ax.hexbin(y, y_hat, alpha=1.0, cmap=cmap)
+    cb = fig.colorbar(hb, ax=ax)
     
     mae = mean_absolute_error(y, y_hat)
     rmse = mean_squared_error(y, y_hat, squared=False)
@@ -219,7 +221,7 @@ def plot_prediction_error(model, x, y,
     round_up = lambda num, divisor: np.ceil(num / divisor) * divisor
     
     if dropped_spines:
-        ax.set_xlim((0, round_up(y_val.max(), 10)))
+        ax.set_xlim((0, round_up(y.max(), 10)))
         ax.set_ylim((0, round_up(y_hat.max(), 10)))
         
         ax.grid(False)

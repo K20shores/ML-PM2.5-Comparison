@@ -742,4 +742,4 @@ class ModelStack():
         """
 
         ar = load(filename)
-        self.voting_regressor_, self.scaler = ar[:-1], ar[-1]
+        self.voting_regressor_, self.scaler = ar[0], ar[1]
