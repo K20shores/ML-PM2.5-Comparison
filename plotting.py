@@ -3,6 +3,10 @@ from matplotlib.cm import ScalarMappable
 from matplotlib.colors import Normalize
 import matplotlib.pyplot as plot
 
+from utils import summarize_scores
+
+import numpy as np
+
 import contextily as cx
 
 from yellowbrick.regressor import ResidualsPlot
