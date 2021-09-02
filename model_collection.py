@@ -372,7 +372,7 @@ class ModelCollection:
         """
         model = self.models[model_name]
         
-        _x = self._get_scaled_x(model_name, x)
+        _x = self._get_scaled_x(model_name, x,)
 
         y_pred = model.predict(_x)
         scores = (
@@ -386,15 +386,17 @@ class ModelCollection:
     def predict(self, x):
         predicitons = {}
         
-        x = None 
+        _x = None 
         for model_name in self.models.keys():
             if model_name == 'Linear Mixed Effect':
                 x_lme = self._get_scaled_x(model_name, x)
                 predicitons[model_name] = self.predict_model(model_name, x_lme, is_scaled=True)
             else:
-                if x is None:
-                    x = self._get_scaled_x(model_name, x)
-                predicitons[model_name] = self.predict_model(model_name, x, is_scaled=True)
+                if _x is None:
+                    _x = self._get_scaled_x(model_name, x)
+                predicitons[model_name] = self.predict_model(model_name, _x, is_scaled=True)
+
+        return predicitons
     
     def predict_model(self, model_name, x, is_scaled=False):
         
