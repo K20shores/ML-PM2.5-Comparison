@@ -1,7 +1,7 @@
 from matplotlib.gridspec import GridSpec
 from matplotlib.cm import ScalarMappable
 from matplotlib.colors import Normalize
-import matplotlib.pyplot as plot
+import matplotlib.pyplot as plt
 
 from utils import summarize_scores
 
@@ -188,16 +188,6 @@ def plot_prediction_error(model, x, y,
     
     ax_histy.set_title(name)
     
-#     ax_histy.set_yscale('log')
-#     ax_histx.set_xscale('log')
-    
-#     density = stats.kde.gaussian_kde(y)
-#     y_true_range = np.arange(0, y.max(), .1)
-#     y_true_density = density(y_true_range)
-
-#     ax_histx.plot(y_true_range, y_true_density, alpha=0.7, lw=1, color='#9CDEF6')
-#     ax_histx.fill_between(y_true_range, y_true_density, alpha=0.4, color='#9CDEF6')
-    
     ax.plot(line, line, '--', color=unity_color, lw=1, label='unity')
     ax.plot(line, fit.predict(line.reshape(-1, 1)), color=fit_color, lw=1, label=equation)
 
@@ -220,7 +210,6 @@ def plot_prediction_error(model, x, y,
             transform=ax.transAxes, 
             fontdict=fontdict)
 
-#     fig.suptitle(f'{name}MAE = {mae:.2f}' + r' $\frac{\mu g}{m^3}$' + f'  RMSE = {rmse:.2f}' + r' $\frac{\mu g}{m^3}$')
 
     ax.set_xlabel(r'True $\log [PM_{2.5}]~ \frac{\mu g}{m^3}$')
     ax.set_ylabel(r'Predicted $\log [PM_{2.5}]~ \frac{\mu g}{m^3}$')
