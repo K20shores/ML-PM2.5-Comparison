@@ -124,7 +124,8 @@ def plot_prediction_error(model, x, y,
                           r2_ax_locx = .1, 
                           r2_ax_locy = .8, 
                           dropped_spines = False, 
-                          name = '', cmap=cm.viridis):
+                          name = '', cmap=cm.viridis, 
+                          histograms=True):
     """
     Plot true values of y against the predicted values, y_hat, made by the model
     
@@ -152,6 +153,8 @@ def plot_prediction_error(model, x, y,
         and the grid will be turned off
     name: str
         Text that will be prepended to the title of the plot
+    cmap: colormap
+        The colormap to show for the density of points
     """
     y_hat = model.predict(x)
 
