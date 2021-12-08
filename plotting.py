@@ -1,6 +1,6 @@
 from matplotlib.gridspec import GridSpec
 from matplotlib.cm import ScalarMappable
-from matplotlib.colors import Normalize
+from matplotlib.colors import Normalize, TwoSlopeNorm
 import matplotlib.pyplot as plt
 from matplotlib import cm
 
@@ -236,6 +236,8 @@ def plot_prediction_error(model, x, y,
         ax.spines['bottom'].set_position(('outward', 10))
         
         ax.tick_params(direction='out', length=4, width=1, color='.8')
+    
+    return fig
         
 def feature_importance(importances, model_name, columns, fontsize=10, fill_color='#9CDEF6aa', edge_color='#6549DA'):    
     indices = np.argsort(importances)[::]
@@ -329,7 +331,7 @@ def set_size(width, fraction=1):
 
     return fig_dim
 
-def map_predicted(ds, nrows, ncols, width=504, colormap='viridis'):
+def map_predicted(ds, nrows, ncols, width=504, colormap='viridis', vmin = None, vmax = None, two_slope_norm=False):
     """
     Map the values in ds in a grid of plots
 
@@ -352,15 +354,21 @@ def map_predicted(ds, nrows, ncols, width=504, colormap='viridis'):
     attribution = source['attribution']
     source['attribution'] = ''
 
-    var_min = min(ds.min().to_pandas().tolist())
-    var_max = max(ds.max().to_pandas().tolist())
+    var_min = vmin if vmin is not None else min(ds.min().to_pandas().tolist())
+    var_max = vmax if vmax is not None else max(ds.max().to_pandas().tolist())
+
+    norm = None
+    if two_slope_norm:
+        norm = TwoSlopeNorm(vmin=var_min, vmax=var_max, vcenter=0)
+    else:
+        norm=Normalize(vmin=var_min, vmax=var_max)
 
     columns = [x.name for x in ds.data_vars.values()]
     last_idx = len(columns) - 1
     
     for idx, column, ax in zip(range(len(columns)), columns, np.ravel(axes)):
         ds[column] \
-            .plot(ax=ax, alpha=1, add_colorbar=False, cmap=colormap, vmin=var_min, vmax=var_max)
+            .plot(ax=ax, alpha=1, add_colorbar=False, cmap=colormap, vmin=var_min, vmax=var_max, norm=norm)
 
         cx.add_basemap(ax=ax, crs='EPSG:4326', source=source)
 
@@ -379,7 +387,7 @@ def map_predicted(ds, nrows, ncols, width=504, colormap='viridis'):
         ax.remove()
     axes = np.ravel(axes)[:idx+1]
 
-    mappable = ScalarMappable(norm=Normalize(vmin=var_min, vmax=var_max), cmap=colormap)
+    mappable = ScalarMappable(norm=norm, cmap=colormap)
     cbar = fig.colorbar(mappable, ax=axes.flat)
     cbar.outline.set_linewidth(0)
     

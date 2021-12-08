@@ -27,8 +27,6 @@ from joblib import dump, load
 from statsmodels.api import MixedLM
 from sklearn.base import BaseEstimator, RegressorMixin
 
-from pymer4 import Lmer
-
 from tqdm.notebook import tqdm
 
 from sklearn.ensemble import VotingRegressor
@@ -38,85 +36,6 @@ import numpy as np
 import pandas as pd
 
 import warnings
-
-class Pymer4Wrapper(BaseEstimator, RegressorMixin):
-    """ 
-    An sklearn-style wrapper for the Pymer4 Lmer model, which calls the lmer model from R
-    
-    https://eshinjolly.com/pymer4/api.html
-    
-    Attributes
-    ----------
-    """
-    def __init__(self, formula):
-        """
-        Parameters
-        ----------
-        """
-        self.formula = formula
-
-    def fit(self, X, y):
-        """
-        Fit the Pymer4 model
-
-        Parameters
-        ----------
-        X : array_like
-            The covariates used to predict `y`
-        y : array_like
-            The values that should be predicted
-        """
-        data = pd.concat([pd.DataFrame(X), pd.Series(y)], axis=1)
-        data.columns = X.columns.tolist() + [y.name]
-
-        self.model_ = Lmer(self.formula, data=data)
-        
-        self.model_.fit()
-        
-        return self
-        
-    def predict(self, X):
-        """
-        Make a prediction with the fitted model
-
-        Parameters
-        ----------
-        X : array_like
-            The covariates used to make a prediction
-        """
-        return self.model_.predict(X)
-    
-    def summary(self):
-        """
-        Print a summary of the fitted results 
-        
-        See the MixedLMResults.summary documentation for more information: https://www.statsmodels.org/stable/generated/statsmodels.regression.mixed_linear_model.MixedLMResults.summary.html#statsmodels.regression.mixed_linear_model.MixedLMResults.summary
-        """
-        return self.model_.summary()
-    
-    def compute_scores(self, X, y):
-        """
-        Predict the values and return three scores
-        
-        Parameters
-        ----------
-        X : array_like
-            The covariates used to predict `y`
-        y : array_like
-            The values that should be predicted
-            
-        Returns
-        ----------
-            scores: tuple
-                r2_score, root mean squared error, mean absolute error
-        """
-        y_pred = self.model_.predict(X)
-        
-        r2 = r2_score(y, y_pred)
-        rmse = mean_squared_error(y, y_pred, squared=False)
-        mae = mean_absolute_error(y, y_pred)
-        scores = r2, rmse, mae
-        return scores    
     
 class ModelCollection:
     """
@@ -149,16 +68,10 @@ class ModelCollection:
     """
     scoring = ['r2', 'neg_mean_absolute_error', 'neg_root_mean_squared_error']
     
-    def __init__(self, x, y, cv=10, stratify=False, lme_dependent = '', lme_independents = '', lme_group = 'DoY', lme_formula='', lme_locations=None):
+    def __init__(self, x, y, cv=10, stratify=False):
         """
         Initialize the necessary data for this class
         
-        x will be copied twice, once for all models except linear mixed effect, and again for mixed effect.
-        Mixed effect needs a grouping parameter. This parameter, lme_group can either be 'DoY' (day of the year)
-        'Month', or 'Season'. The copied x with have this added as a column
-        
-        y will be copied once. In this copy, the name of the series will be replaced with `lme_dependent`
-
         Parameters
         ----------
         x : pandas.DataFrame
@@ -169,20 +82,6 @@ class ModelCollection:
             the number of folds to use for cross validation. If stratify is True, this will also determine
             the number of bins to use to stratify y
         stratify : boolean, optional default False
-            if True, y will be stratified with pandas.cut using the cv as the number of bins so that
-            stratified cross validation will be done. 
-            Read more here: https://stackoverflow.com/a/54946733/5217293
-        lme_dependent: string, default ''
-            The dependent variable that linear mixed effect will predict. This string will replace the name of the
-            `y` series for use by the linear mixed effect model
-        lme_independents: string, default ''
-            The independents variables used to predict `lme_dependent`. This will be used to construct an R-style formula
-        lme_group: string, default 'DoY'
-            One of 'DoY' (day of the year), 'Month', 'Season', or 'Location'. Whatever value is chosen, a column will be added
-            to a copied version of x and that column will be used to do the grouping. If 'Location' is specified, an array 
-            of locations must be passed to lme_location
-        lme_locations: pd.Series default None
-            A pandas Series with the same index as x whose column values should indicate a locaitonal grouping of each row in x
         """
         
         self.x = x.copy()
@@ -190,12 +89,6 @@ class ModelCollection:
         
         self.scaler = None
         self.scaled_x = None
-        
-        self.lme_dependent = lme_dependent
-        self.lme_independents = lme_independents
-        self.lme_group = lme_group
-        self.lme_formula = lme_formula
-        self.lme_locations = lme_locations
         
         self.scores_ = {}
         self.cross_val_scores_ = {}
@@ -388,13 +281,9 @@ class ModelCollection:
         
         _x = None 
         for model_name in self.models.keys():
-            if model_name == 'Linear Mixed Effect':
-                x_lme = self._get_scaled_x(model_name, x)
-                predicitons[model_name] = self.predict_model(model_name, x_lme, is_scaled=True)
-            else:
-                if _x is None:
-                    _x = self._get_scaled_x(model_name, x)
-                predicitons[model_name] = self.predict_model(model_name, _x, is_scaled=True)
+            if _x is None:
+                _x = self._get_scaled_x(model_name, x)
+            predicitons[model_name] = self.predict_model(model_name, _x, is_scaled=True)
 
         return predicitons
     
@@ -494,6 +383,8 @@ class ModelCollection:
         mlp1 = MLPRegressor(hidden_layer_sizes=(100, 100, 100), max_iter=100000, early_stopping=True)
         mlp2 = MLPRegressor(hidden_layer_sizes=(100, 50, 50, 50, 50), max_iter=100000, early_stopping=True)
         mlp3 = MLPRegressor(hidden_layer_sizes=(100, 50, 50, 50, 50, 100), max_iter=100000, early_stopping=True)
+        mlp4 = MLPRegressor(hidden_layer_sizes=(10, 10, 10), max_iter=100000, early_stopping=True)
+        mlp5 = MLPRegressor(hidden_layer_sizes=(10, 20, 10), max_iter=100000, early_stopping=True)
 
         self.models = {
             'Linear Regression': LinearRegression(),
@@ -501,11 +392,12 @@ class ModelCollection:
             'Polynomial' : Pipeline([('poly', PolynomialFeatures()), ('linear', linear_model.LinearRegression())]),
             'Bayesian Ridge' : BayesianRidge(),
             'SVR' :  LinearSVR(max_iter=20000),
-            'Linear Mixed Effect': Pymer4Wrapper(formula=self.lme_formula),
             'MLP' :  mlp,
             'MLP1' : mlp1,
             'MLP2' : mlp2,
             'MLP3' : mlp3,
+            'MLP4' : mlp4,
+            'MLP5' : mlp5,
             'Ada Boost' : AdaBoostRegressor(),
             'Random Forest' : RandomForestRegressor(n_jobs=-1),
             'Extra Trees' : ExtraTreesRegressor(n_jobs=-1),
@@ -526,12 +418,8 @@ class ModelCollection:
             scaled_values = self.scaler.transform(self.x)
             self.scaled_x = pd.DataFrame(scaled_values, index=self.x.index, columns=self.x.columns)
         
-        if model_name == 'Linear Mixed Effect':
-            _x = self._transform_x_for_lme(self.scaled_x)
-            _y = self.y.copy().rename(self.lme_dependent)
-        else:
-            _x = self.scaled_x
-            _y = self.y
+        _x = self.scaled_x
+        _y = self.y
         
         return _x, _y
     
@@ -539,29 +427,9 @@ class ModelCollection:
         scaled_values = self.scaler.transform(x)
         scaled_x = pd.DataFrame(scaled_values, index=x.index, columns=x.columns)
         
-        if model_name == 'Linear Mixed Effect':
-            _x = self._transform_x_for_lme(scaled_x)
-        else:
-            _x = scaled_x
+        _x = scaled_x
         
         return _x
-    
-    def _transform_x_for_lme(self, x):
-        if not x.empty:
-            x_lme = x.copy()
-            x_lme = pd.concat([x_lme, self.lme_locations], axis=1)
-            if self.lme_group == 'DoY':
-                x_lme['DoY'] = x_lme.index.dayofyear
-            elif self.lme_group == 'Month':
-                x_lme['Month'] = x_lme.index.month
-            elif self.lme_group == 'Season':
-                x_lme['Season'] = (x_lme.index.month%12 // 3 + 1)
-            elif self.lme_group == 'Location':
-                pass
-        else:
-            x_lme = []
-        
-        return x_lme   
     
 class ModelStack():
     """
@@ -621,23 +489,17 @@ class ModelStack():
         
         self.voting_regressor_ = None
 
-        if 'Linear Mixed Effect' in self.mc.models:
-            warnings.warn('The linear mixed effect model will not be considered for model stacking. See the documentation for this class for more information')
-
     def fit(self):
         """ Choose the model with the top self.n scores according to self.how and fit a voting
             regressor with them.
         """
         
-        if self.mc.scores_:
-            scores = self.mc.scores_
+        if getattr(self.mc, 'scores_', None) is None or not self.mc.scores_:
+            scores = self.mc.compute_scores(self.x, self.y)
         else:
-            _x = self.x.copy()
-            scores = self.mc.compute_scores(_x, self.y)
-            self.scaler = self.mc.scaler
-        
-        if 'Linear Mixed Effect' in scores:
-            del scores['Linear Mixed Effect']
+            scores = self.mc.scores_
+
+        self.scaler = self.mc.scaler
         
         # split the model names and scores into two lists
         names, scores = map(np.array, zip(*[(name, vals[self.criterion]) for name, vals in scores.items()]))
