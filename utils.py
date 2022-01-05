@@ -2,6 +2,12 @@ from sklearn.metrics import mean_absolute_error, r2_score, mean_squared_error
 import numpy as np
 import pandas as pd
 
+from google.auth.transport.requests import Request
+from google.oauth2 import service_account
+from google_auth_oauthlib.flow import InstalledAppFlow
+from googleapiclient.discovery import build
+from googleapiclient.errors import HttpError
+
 def summarize_scores(scores):
     r2 = scores["test_r2"].mean()
     mae = np.abs(scores["test_neg_mean_absolute_error"]).mean()
@@ -46,3 +52,25 @@ def scores_from_model_collection_predictions(predictions):
 
     scores = pd.DataFrame({'Model': models, 'R2': r2s, 'MAE': maes, 'RMSE': rmses}).set_index('Model')
     return scores
+
+class GSheetConnector:
+    def __init__(self, service_account_file, scopes = ['https://www.googleapis.com/auth/spreadsheets']):
+        self.service_account_file = service_account_file
+        self.scopes = scopes
+        self.token = 'token.json'
+        self.service = None
+        self.creds = None
+        
+        self.__connect__()
+    
+    def get_sheets(self):
+        return self.service.spreadsheets()
+    
+    def __connect__(self):
+        # https://developers.google.com/identity/protocols/oauth2/service-account#authorizingrequests
+        self.creds = service_account.Credentials.from_service_account_file(
+            self.service_account_file, scopes=self.scopes)
+        try:
+            self.service = build('sheets', 'v4', credentials=self.creds)
+        except HttpError as err:
+            print(err)

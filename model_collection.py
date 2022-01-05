@@ -1,4 +1,4 @@
-from sklearn.linear_model import ElasticNetCV, BayesianRidge, LinearRegression
+from sklearn.linear_model import ElasticNet, BayesianRidge, LinearRegression
 from sklearn.svm import LinearSVR
 from sklearn import linear_model
 
@@ -134,7 +134,7 @@ class ModelCollection:
             to fit the model in seconds
         """
         
-        _x, _y = self._get_xy_for_training(model_name)
+        _x, _y = self._get_xy_for_training()
         
         start = time.time()
             
@@ -204,7 +204,7 @@ class ModelCollection:
             model.n_jobs = -1
             cross_val_parallel = None
 
-        _x, _y = self._get_xy_for_training(model_name)
+        _x, _y = self._get_xy_for_training()
         self.cross_val_scores_[model_name] = cross_validate(model, 
                                   _x, _y, 
                                   cv = self._get_cross_validation(), 
@@ -265,7 +265,7 @@ class ModelCollection:
         """
         model = self.models[model_name]
         
-        _x = self._get_scaled_x(model_name, x,)
+        _x = self._get_scaled_x(x)
 
         y_pred = model.predict(_x)
         scores = (
@@ -282,7 +282,7 @@ class ModelCollection:
         _x = None 
         for model_name in self.models.keys():
             if _x is None:
-                _x = self._get_scaled_x(model_name, x)
+                _x = self._get_scaled_x(x)
             predicitons[model_name] = self.predict_model(model_name, _x, is_scaled=True)
 
         return predicitons
@@ -291,7 +291,7 @@ class ModelCollection:
         
         model = self.models[model_name]
         if not is_scaled:
-            x = self._get_scaled_x(model_name, x)
+            x = self._get_scaled_x(x)
         return model.predict(x)
         
     def save(self, filepath):
@@ -375,10 +375,6 @@ class ModelCollection:
         values in self.models
         """
         #  models that will be placed into a pipeline
-        elastic = ElasticNetCV(cv=10, 
-                       l1_ratio=np.arange(0.1, 1.1, .1),
-                       max_iter=10000
-                      )
         mlp = MLPRegressor(max_iter=2000, early_stopping=True)
         mlp1 = MLPRegressor(hidden_layer_sizes=(100, 100, 100), max_iter=100000, early_stopping=True)
         mlp2 = MLPRegressor(hidden_layer_sizes=(100, 50, 50, 50, 50), max_iter=100000, early_stopping=True)
@@ -388,7 +384,7 @@ class ModelCollection:
 
         self.models = {
             'Linear Regression': LinearRegression(),
-            'Elastic Net' : elastic,
+            'Elastic Net' : ElasticNet(),
             'Polynomial' : Pipeline([('poly', PolynomialFeatures()), ('linear', linear_model.LinearRegression())]),
             'Bayesian Ridge' : BayesianRidge(),
             'SVR' :  LinearSVR(max_iter=20000),
@@ -410,7 +406,7 @@ class ModelCollection:
         y_cat = pd.cut(self.y, self.cv, labels=range(self.cv))
         return StratifiedKFold(self.cv).split(self.x, y_cat)
     
-    def _get_xy_for_training(self, model_name):
+    def _get_xy_for_training(self):
         if self.scaler is None:
             self.scaler = StandardScaler().fit(self.x)
             
@@ -418,12 +414,9 @@ class ModelCollection:
             scaled_values = self.scaler.transform(self.x)
             self.scaled_x = pd.DataFrame(scaled_values, index=self.x.index, columns=self.x.columns)
         
-        _x = self.scaled_x
-        _y = self.y
-        
-        return _x, _y
+        return self.scaled_x ,self.y
     
-    def _get_scaled_x(self, model_name, x):
+    def _get_scaled_x(self, x):
         scaled_values = self.scaler.transform(x)
         scaled_x = pd.DataFrame(scaled_values, index=x.index, columns=x.columns)
         
