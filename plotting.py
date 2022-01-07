@@ -117,15 +117,17 @@ def grouped_boxplot_with_table(scores, labels, save=False, filename='scores.png'
         
     return fig, (ax1, ax2, ax3, ax4)
         
-def plot_prediction_error(model, x, y, 
+def plot_prediction_error(model, x, y, vmin, vmax,
                           legend_fontsize = 12, 
                           unity_color = '#A86CAD', 
                           fit_color = '#FCA481', 
                           r2_ax_locx = .1, 
                           r2_ax_locy = .8, 
                           dropped_spines = False, 
-                          name = '', cmap=cm.viridis, 
-                          histograms=True):
+                          name = '', 
+                          cmap=cm.viridis,
+                          xlim = None,
+                          ylim = None):
     """
     Plot true values of y against the predicted values, y_hat, made by the model
     
@@ -138,6 +140,10 @@ def plot_prediction_error(model, x, y,
         The data used to predict y
     y : array_like
         The data being predicted
+    vmin : float
+        The minimum of the colorbar
+    vmax : float
+        The maximum of the colorbar
     legend_fontsize : int, optional default 12
         The fontsize in points
     unity_color : string, optional default '#A86CAD'
@@ -155,6 +161,10 @@ def plot_prediction_error(model, x, y,
         Text that will be prepended to the title of the plot
     cmap: colormap
         The colormap to show for the density of points
+    xlim: tuple, default None
+        The x axes limits. The min, max of x are used if none are provided
+    ylim: tuple, default None
+        The y axes limits. The min, max of y are used if none are provided
     """
     y_hat = model.predict(x)
 
@@ -192,26 +202,26 @@ def plot_prediction_error(model, x, y,
     
     ax_histy.set_title(name)
     
-    ax.plot(line, line, '--', color=unity_color, lw=1, label='unity')
-    ax.plot(line, fit.predict(line.reshape(-1, 1)), color=fit_color, lw=1, label=equation)
+    xlim = xlim if xlim is not None else (y.min(), y.max())
+    ylim = ylim if ylim is not None else (y_hat.min(), y_hat.max())
 
-    hb = ax.hexbin(y, y_hat, alpha=1.0, cmap=cmap)
+    ax.plot(line, line, '--', color=unity_color, lw=1, label='unity', alpha=0.6)
+    ax.plot(line, fit.predict(line.reshape(-1, 1)), color=fit_color, lw=1, label=equation, alpha=0.6)
+
+    ax.set_xlim(xlim)
+    ax.set_ylim(ylim)
+
+    extent = (*xlim, *ylim)
+    hb = ax.hexbin(y, y_hat, alpha=1.0, cmap=cmap, vmin=vmin, vmax=vmax, extent=extent)
     cb = fig.colorbar(hb, ax=ax)
+    cb.outline.set_linewidth(0)
     
     mae = mean_absolute_error(y, y_hat)
     rmse = mean_squared_error(y, y_hat, squared=False)
     
     fontdict = {'fontsize': legend_fontsize}
     ax.text(r2_ax_locx, r2_ax_locy, 
-            fr'$R^2 ={fit_r2:.2f}$', 
-            transform=ax.transAxes, 
-            fontdict=fontdict)
-    ax.text(r2_ax_locx, r2_ax_locy - .05, 
-            fr'$RMSE ={rmse:.2f}$', 
-            transform=ax.transAxes, 
-            fontdict=fontdict)
-    ax.text(r2_ax_locx, r2_ax_locy - .1, 
-            fr'$MAE ={mae:.2f}$', 
+            fr'$R^2 ={fit_r2:.2f}$' + "\n" + fr'$RMSE ={rmse:.2f}$' + "\n" + fr'$MAE ={mae:.2f}$', 
             transform=ax.transAxes, 
             fontdict=fontdict)
 
@@ -392,3 +402,90 @@ def map_predicted(ds, nrows, ncols, width=504, colormap='viridis', vmin = None, 
     cbar.outline.set_linewidth(0)
     
     return fig, axes
+
+def plot_prediction_error_given_values(predictions, true_values, vmin, vmax, ax=None,
+                          legend_fontsize = 12, 
+                          unity_color = '#A86CAD', 
+                          fit_color = '#FCA481', 
+                          r2_ax_locx = .1, 
+                          r2_ax_locy = .8, 
+                          cmap=cm.viridis,
+                          xlim = None,
+                          ylim = None):
+    """
+    Plot true values of versus predicted given values
+    
+    Parameters
+    ----------
+    predictions : array_like
+        the predicted values
+    y : array_like
+        The true values
+    vmin : float
+        The minimum of the colorbar
+    vmax : float
+        The maximum of the colorbar
+    ax: matplotlib axes object, default None
+        the axis to use if desired. One will be created if this is not provided
+    legend_fontsize : int, optional default 12
+        The fontsize in points
+    unity_color : string, optional default '#A86CAD'
+        The color used to paint the line y = x
+    fit_color : string, optional default '#FCA481'
+        The color used to paint the fit line made by a linear regression of y_hat ~ y
+    r2_ax_locx : float, optional default .1
+        The x position of the r squared label on the graph in axes coordinates
+    r2_ax_locy : float, optional default .82
+        The y position of the r squared label on the graph in axes coordinates
+    dropped_spines : boolean, optional default False
+        If set to true, the bottom and left spines will be drawn and offset 
+        and the grid will be turned off
+    cmap: colormap
+        The colormap to show for the density of points
+    xlim: tuple, default None
+        The x axes limits. The min, max of x are used if none are provided
+    ylim: tuple, default None
+        The y axes limits. The min, max of y are used if none are provided
+    """
+    fit = LinearRegression().fit(true_values, predictions)
+
+    fit_r2 = fit.score(true_values, predictions)
+    coef = fit.coef_.flatten()[0]
+    intercept = fit.intercept_.flatten()[0]
+    equation = f'y = {coef:.2f} x + {intercept:.2f}'
+
+    line = np.arange(0, true_values.max(), 1)
+
+    if ax is None:
+        fig, ax = plt.subplots(dpi=300)
+    else:
+        fig = ax.get_figure()
+    
+    xlim = xlim if xlim is not None else (true_values.min(), true_values.max())
+    ylim = ylim if ylim is not None else (predictions.min(), predictions.max())
+
+    ax.plot(line, line, '--', color=unity_color, lw=1, label='unity', alpha=0.6)
+    ax.plot(line, fit.predict(line.reshape(-1, 1)), color=fit_color, lw=1, label=equation, alpha=0.6)
+
+    extent = (*xlim, *ylim)
+    hb = ax.hexbin(true_values, predictions, alpha=1.0, cmap=cmap, extent=extent, gridsize=50, vmin=vmin, vmax=vmax)
+
+    ax.set_xlim(xlim)
+    ax.set_ylim(ylim)
+
+    mae = mean_absolute_error(true_values, predictions)
+    rmse = mean_squared_error(true_values, predictions, squared=False)
+    
+    fontdict = {'fontsize': legend_fontsize}
+    ax.text(r2_ax_locx, r2_ax_locy, 
+            fr'$R^2 ={fit_r2:.2f}$' + "\n" + fr'$RMSE ={rmse:.2f}$' + "\n" + fr'$MAE ={mae:.2f}$', 
+            transform=ax.transAxes, 
+            fontdict=fontdict)
+
+    ax.set_xlabel(r'True $\log [PM_{2.5}]~ \frac{\mu g}{m^3}$')
+    ax.set_ylabel(r'Predicted $\log [PM_{2.5}]~ \frac{\mu g}{m^3}$')
+
+    ax.legend(fontsize=legend_fontsize)
+    ax.grid(True, zorder=4, color='green') 
+    
+    return fig, ax, hb
