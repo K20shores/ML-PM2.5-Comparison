@@ -341,7 +341,7 @@ def set_size(width, fraction=1):
 
     return fig_dim
 
-def map_predicted(ds, nrows, ncols, width=504, colormap='viridis', vmin = None, vmax = None, two_slope_norm=False):
+def map_predicted(ds, fig = None, axes = None, nrows = None, ncols = None, width=504, colormap='viridis', vmin = None, vmax = None, two_slope_norm=False):
     """
     Map the values in ds in a grid of plots
 
@@ -358,7 +358,8 @@ def map_predicted(ds, nrows, ncols, width=504, colormap='viridis', vmin = None, 
     colormap: string or matplotlib colormap
         The colormap to use
     """
-    fig, axes = plt.subplots(nrows = nrows, ncols = ncols, figsize=set_size(width))
+    if fig is None or axes is None:
+        fig, axes = plt.subplots(nrows = nrows, ncols = ncols, figsize=set_size(width))
 
     source = {key: value for key, value in cx.providers.Wikimedia.items()}
     attribution = source['attribution']
