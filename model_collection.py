@@ -375,12 +375,12 @@ class ModelCollection:
         values in self.models
         """
         #  models that will be placed into a pipeline
-        mlp = MLPRegressor(max_iter=2000, early_stopping=True)
-        mlp1 = MLPRegressor(hidden_layer_sizes=(100, 100, 100), max_iter=100000, early_stopping=True)
-        mlp2 = MLPRegressor(hidden_layer_sizes=(100, 50, 50, 50, 50), max_iter=100000, early_stopping=True)
-        mlp3 = MLPRegressor(hidden_layer_sizes=(100, 50, 50, 50, 50, 100), max_iter=100000, early_stopping=True)
-        mlp4 = MLPRegressor(hidden_layer_sizes=(10, 10, 10), max_iter=100000, early_stopping=True)
-        mlp5 = MLPRegressor(hidden_layer_sizes=(10, 20, 10), max_iter=100000, early_stopping=True)
+        mlp0 = MLPRegressor(max_iter=2000, early_stopping=True)
+        mlp1 = MLPRegressor(hidden_layer_sizes=(10, 10, 10), max_iter=100000, early_stopping=True)
+        mlp2 = MLPRegressor(hidden_layer_sizes=(10, 20, 10), max_iter=100000, early_stopping=True)
+        mlp3 = MLPRegressor(hidden_layer_sizes=(100, 100, 100), max_iter=100000, early_stopping=True)
+        mlp4 = MLPRegressor(hidden_layer_sizes=(100, 50, 50, 50, 50), max_iter=100000, early_stopping=True)
+        mlp5 = MLPRegressor(hidden_layer_sizes=(100, 50, 50, 50, 50, 100), max_iter=100000, early_stopping=True)
 
         self.models = {
             'Linear Regression': LinearRegression(),
@@ -388,7 +388,7 @@ class ModelCollection:
             'Polynomial' : Pipeline([('poly', PolynomialFeatures()), ('linear', linear_model.LinearRegression())]),
             'Bayesian Ridge' : BayesianRidge(),
             'SVR' :  LinearSVR(max_iter=20000),
-            'MLP' :  mlp,
+            'MLP0' : mlp0,
             'MLP1' : mlp1,
             'MLP2' : mlp2,
             'MLP3' : mlp3,

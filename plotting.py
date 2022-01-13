@@ -366,6 +366,8 @@ def map_predicted(ds, nrows, ncols, width=504, colormap='viridis', vmin = None, 
 
     var_min = vmin if vmin is not None else min(ds.min().to_pandas().tolist())
     var_max = vmax if vmax is not None else max(ds.max().to_pandas().tolist())
+    if var_max < 0:
+        var_max = -var_min
 
     norm = None
     if two_slope_norm:
@@ -401,7 +403,7 @@ def map_predicted(ds, nrows, ncols, width=504, colormap='viridis', vmin = None, 
     cbar = fig.colorbar(mappable, ax=axes.flat)
     cbar.outline.set_linewidth(0)
     
-    return fig, axes
+    return fig, axes, cbar
 
 def plot_prediction_error_given_values(predictions, true_values, vmin, vmax, ax=None,
                           legend_fontsize = 12, 
