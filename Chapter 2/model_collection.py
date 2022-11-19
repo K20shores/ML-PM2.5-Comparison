@@ -364,58 +364,60 @@ class ModelCollection:
         """
 
         parameters = {
-            'Linear Regression': None,
-            'Elastic Net' : dict(
-                elastic_net__alpha=np.arange(0.05, 1.05, .05),
-                elastic_net__l1_ratio=np.arange(0, 1, 0.01),
-                elastic_net__selection = ['cyclic', 'random'],
-            ),
-            'Polynomial' : None,
-            'Bayesian Ridge' : dict(
-                bayesian_ridge__alpha_1=[1e-6, 1e-5, 1e-4],
-                bayesian_ridge__alpha_2=[1e-6, 1e-5, 1e-4],
-                bayesian_ridge__lambda_1=[1e-6, 1e-5, 1e-4],
-                bayesian_ridge__lambda_2=[1e-6, 1e-5, 1e-4],
-            ),
-            'SVR' : dict(
-                nystroem__gamma=np.geomspace(1e-3, 1e3, 10),
-                nystroem__n_components=[100, 200, 300],
-                svr__C=np.geomspace(1e-3, 1e3, 10)
-            ),
-            'MLP' : dict(
-                mlp__hidden_layer_sizes = [
-                    (10), (50), (100),
-                    (100, 50, 10), 
-                    (10, 100, 50), 
-                    (10, 50, 100), 
-                ]
-            ),
-            'Ada Boost' : dict(
-                ada_boost__n_estimators = [100, 500, 1000],
-                ada_boost__learning_rate = np.arange(0, 1.1, 0.1)
-            ),
+#             'Linear Regression': None,
+#             'Elastic Net' : dict(
+#                 elastic_net__alpha=np.arange(0.05, 1.05, .05),
+#                 elastic_net__l1_ratio=np.arange(0, 1, 0.01),
+#                 elastic_net__selection = ['cyclic', 'random'],
+#             ),
+#             'Polynomial' : None,
+#             'Bayesian Ridge' : dict(
+#                 bayesian_ridge__alpha_1=[1e-6, 1e-5, 1e-4],
+#                 bayesian_ridge__alpha_2=[1e-6, 1e-5, 1e-4],
+#                 bayesian_ridge__lambda_1=[1e-6, 1e-5, 1e-4],
+#                 bayesian_ridge__lambda_2=[1e-6, 1e-5, 1e-4],
+#             ),
+#             'SVR' : dict(
+#                 nystroem__gamma=np.geomspace(1e-3, 1e3, 10),
+#                 nystroem__n_components=[100, 200, 300],
+#                 svr__C=np.geomspace(1e-3, 1e3, 10)
+#             ),
+#             'MLP' : dict(
+#                 mlp__hidden_layer_sizes = [
+#                     (10), (50), (100),
+#                     (100, 50, 10), 
+#                     (10, 100, 50), 
+#                     (10, 50, 100), 
+#                 ]
+#             ),
+#             'Ada Boost' : dict(
+#                 ada_boost__n_estimators = [100, 500, 1000],
+#                 ada_boost__learning_rate = np.arange(0, 1.1, 0.1)
+#             ),
             'Random Forest' : dict(
-                random_forest__n_estimators = [100, 500, 1000],
-                random_forest__min_samples_split = [2, 3, 4],
-                random_forest__min_samples_leaf = [1, 2, 3], 
-                random_forest__max_features = [1, 2, 3, 4],
+                random_forest__n_estimators = [200, 300, 400, 500],
+                random_forest__min_samples_split = [2],
+                random_forest__min_samples_leaf = [1], 
+                random_forest__max_features = [4],
+                random_forest__max_depth = [20, 30, 40],
             ),
             'Extra Trees' : dict(
-                extra_trees__n_estimators = [100, 500, 1000],
-                extra_trees__min_samples_split = [2, 3, 4],
-                extra_trees__min_samples_leaf = [1, 2, 3], 
-                extra_trees__max_features = [1, 2, 3, 4],
+                extra_trees__n_estimators = [200, 300, 400, 500],
+                extra_trees__min_samples_split = [2],
+                extra_trees__min_samples_leaf = [1], 
+                extra_trees__max_features = [4],
+                extra_trees__max_depth = [20, 30, 40, 50],
             ),
-            'Gradient Boost' : dict(
-                gradient_boost__learning_rate = np.arange(0, 1.1, 0.1),
-                gradient_boost__n_estimators = [100, 500, 1000],
-                gradient_boost__min_samples_split = [2, 3, 4],
-                gradient_boost__min_samples_leaf = [1, 2, 3], 
-            ),
-            'XGBoost' : dict(
-                xgboost__learning_rate = np.arange(0, 1.1, 0.1),
-                xgboost__n_estimators = [100, 500, 1000],
-            )
+#             'Gradient Boost' : dict(
+#                 gradient_boost__learning_rate = np.arange(0, 1.1, 0.1),
+#                 gradient_boost__n_estimators = [100, 500, 1000],
+#                 gradient_boost__min_samples_split = [2, 3, 4],
+#                 gradient_boost__min_samples_leaf = [1, 2, 3], 
+#             ),
+#             'XGBoost' : dict(
+#                 xgboost__learning_rate = np.arange(0, 1.1, 0.1),
+#                 xgboost__n_estimators = [100, 500, 1000],
+#             )
         }
 
         if hyperparameters:

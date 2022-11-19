@@ -10,6 +10,8 @@ import matplotlib.pyplot as plt
 import cartopy.crs as ccrs
 import cartopy.feature as cfeature
 
+from tqdm import tqdm
+
 plate = ccrs.PlateCarree()
 
 def get_regridder(ds_from, ds_to, var_type, i, j):
@@ -120,7 +122,8 @@ dates = []
 for i in range(date.days_in_month):
     dates.append(date + pd.Timedelta(days=i))
 
-for date in dates:
+pbar = tqdm(dates)
+for date in pbar:
     pbar.set_description(f'{date.year} {date.day_of_year}')
     
     day = f'{date.day_of_year:03}'
@@ -148,8 +151,10 @@ for date in dates:
         ds.lon.attrs["units"] = "degrees_east"
     except FileNotFoundError:
         print('file not found', date)
+        continue
     except OSError:
         print('os error', date)
+        continue
         
     time = pd.to_datetime(ds.time.item()).normalize()
     
